@@ -1,7 +1,7 @@
 # Package Déploiement 2D - Août 2025
 
 ## Nouvelles Fonctionnalités:
-• Commande /intervalle (1-60 minutes) - Actuel: 5min
+• Commande /intervalle (1-60 minutes) - Actuel: 1min
 • Configuration persistante base de données
 • Système déclenchement par As uniquement dans premier groupe
 
