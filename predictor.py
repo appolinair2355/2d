@@ -278,7 +278,7 @@ class CardPredictor:
                 print(f"❌ Résultat invalide: pas exactement 2+2 cartes, ignoré pour vérification")
                 return None, None
             
-            for offset in range(3):  # Check 0, 1, 2 offsets
+            for offset in range(4):  # Check 0, 1, 2 ,3 offsets
                 predicted_number = game_number - offset
                 print(f"Vérification si le jeu #{game_number} correspond à la prédiction #{predicted_number} (offset {offset})")
                 
@@ -289,10 +289,14 @@ class CardPredictor:
                     # Success with offset indicator - résultat déjà validé comme 2+2
                     if offset == 0:
                         statut = '✅0️⃣'  # Perfect timing
-                    elif offset == 1:
-                        statut = '✅1️⃣'  # 1 game late
-                    else:
-                        statut = '✅2️⃣'  # 2 games late
+                        elif offset == 1:
+                            statut = '✅1️⃣'  # 1 game late
+                        elif offset == 2:
+                            statut = '✅2️⃣'  # 2 games late
+                        elif offset == 3:
+                            statut = '✅3️⃣'  # 3 games late
+                        else:
+                            statut = '❌❌'   # plus de 3 -> échec
                         
                     self.prediction_status[predicted_number] = statut
                     self.status_log.append((predicted_number, statut))
