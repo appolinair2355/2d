@@ -707,13 +707,17 @@ PORT=10000
 PREDICTION_INTERVAL={prediction_interval}"""
                 zipf.writestr('.env.example', env_content)
                 
-                # requirements.txt pour Render.com (obligatoire)
+                # requirements.txt pour Render.com (obligatoire - versions compatibles)
                 requirements_content = """telethon==1.35.0
 aiohttp==3.9.5
 python-dotenv==1.0.1
 pyyaml==6.0.1
-psycopg2-binary==2.9.9"""
+psycopg2-binary==2.9.7"""
                 zipf.writestr('requirements.txt', requirements_content)
+                
+                # runtime.txt pour spécifier la version Python
+                runtime_content = "python-3.11.4"
+                zipf.writestr('runtime.txt', runtime_content)
                 
                 # Documentation 2D
                 readme_2d = f"""# Package Déploiement 2D - Août 2025
