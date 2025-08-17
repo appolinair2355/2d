@@ -372,7 +372,7 @@ async def handle_messages(event):
         if predicted:
             logger.info(f"🎯 Message édité finalisé, traitement de la prédiction #{predicted_game}")
             # Message de prédiction selon le nouveau format
-            prediction_text = f"🔵{predicted_game} 🔵2D: {suit} :⏳"
+            prediction_text = f"🔵{predicted_game}— JOKER 2D| ⏳"
 
             sent_messages = await broadcast(prediction_text)
 
@@ -387,7 +387,7 @@ async def handle_messages(event):
             predicted, predicted_game, suit = predictor.should_predict(message_text)
             if predicted:
                 # Message de prédiction manuelle selon le nouveau format demandé
-                prediction_text = f"🔵{predicted_game} 🔵2D: {suit} :⏳"
+                prediction_text = f"🔵{predicted_game}— JOKER 2D| ⏳"
 
                 sent_messages = await broadcast(prediction_text)
 
@@ -399,9 +399,8 @@ async def handle_messages(event):
                 logger.info(f"✅ Prédiction générée pour le jeu #{predicted_game}: {suit}")
 
         # 4. Vérification des résultats (indépendamment des prédictions)
-        verified, number = predictor.verify_prediction(message_text)
+        verified, number, status = predictor.verify_prediction(message_text)
         if verified is not None and number is not None:
-            status = predictor.prediction_status.get(number, 'Inconnu')
             logger.info(f"🔍 Vérification: Jeu #{number}, Statut: {status}")
             
             # Edit the original prediction message instead of sending new message
@@ -413,7 +412,8 @@ async def handle_messages(event):
                 # Pas de nouveau message, juste continuer
 
         # Generate periodic report every 20 predictions
-        # Bilan automatique supprimé sur demande utilisateur
+        if len(predictor.status_log) > 0 and len(predictor.status_log) % 20 == 0:
+            await generate_report()
 
     except Exception as e:
         logger.error(f"Erreur dans handle_messages: {e}")
@@ -465,7 +465,7 @@ async def edit_prediction_message(game_number: int, new_status: str):
         if message_info:
             chat_id = message_info['chat_id']
             message_id = message_info['message_id']
-            new_text = f"🔵{game_number} 🔵2D: statut :{new_status}"
+            new_text = f"🔵{game_number}— JOKER 2D| {new_status}"
             
             await client.edit_message(chat_id, message_id, new_text)
             logger.info(f"Message de prédiction #{game_number} mis à jour avec statut: {new_status}")

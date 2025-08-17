@@ -115,19 +115,10 @@ class CardPredictor:
             second_group = matches[1]
             
             # NOUVELLE LOGIQUE: Vérifier la présence d'As (A) dans les groupes
-            # Chercher As sous toutes les formes: A, A♠️, A♥️, A♦️, A♣️, A♠, A♥, A♦, A♣
-            ace_patterns = ['A♠️', 'A♥️', 'A♦️', 'A♣️', 'A♠', 'A♥', 'A♦', 'A♣', 'A']
-            
-            has_ace_first = any(ace in first_group for ace in ace_patterns)
-            has_ace_second = any(ace in second_group for ace in ace_patterns)
+            has_ace_first = 'A' in first_group
+            has_ace_second = 'A' in second_group
             
             print(f"🎯 Analyse As: Premier groupe='{first_group}' (As: {has_ace_first}), Deuxième groupe='{second_group}' (As: {has_ace_second})")
-            if has_ace_first:
-                ace_found = [ace for ace in ace_patterns if ace in first_group]
-                print(f"   ✅ As détecté dans premier groupe: {ace_found}")
-            if has_ace_second:
-                ace_found = [ace for ace in ace_patterns if ace in second_group]
-                print(f"   ⚠️ As détecté dans deuxième groupe: {ace_found}")
             
             # RÈGLES DE DÉCLENCHEMENT:
             # 1. Prédire SEULEMENT si As dans le PREMIER groupe
@@ -287,9 +278,7 @@ class CardPredictor:
                 print(f"❌ Résultat invalide: pas exactement 2+2 cartes, ignoré pour vérification")
                 return None, None
             
-            # Nouvelle logique: Vérifier d'abord le numéro exact, puis jusqu'à +3
-            # Vérifier les offsets de 0 à 3
-            for offset in range(4):  # offsets 0, 1, 2, 3
+            for offset in range(3):  # Check 0, 1, 2 offsets
                 predicted_number = game_number - offset
                 print(f"Vérification si le jeu #{game_number} correspond à la prédiction #{predicted_number} (offset {offset})")
                 
@@ -297,32 +286,22 @@ class CardPredictor:
                     self.prediction_status[predicted_number] == '⌛'):
                     print(f"Prédiction en attente trouvée: #{predicted_number}")
                     
-                    # Détermine le statut selon l'offset
+                    # Success with offset indicator - résultat déjà validé comme 2+2
                     if offset == 0:
-                        statut = '✅0️⃣'  # Jeu exact
+                        statut = '✅0️⃣'  # Perfect timing
                     elif offset == 1:
-                        statut = '✅1️⃣'  # 1 jeu après
-                    elif offset == 2:
-                        statut = '✅2️⃣'  # 2 jeux après
-                    else:  # offset == 3
-                        statut = '✅3️⃣'  # 3 jeux après
+                        statut = '✅1️⃣'  # 1 game late
+                    else:
+                        statut = '✅2️⃣'  # 2 games late
                         
                     self.prediction_status[predicted_number] = statut
                     self.status_log.append((predicted_number, statut))
                     print(f"✅ Prédiction réussie: #{predicted_number} validée par le jeu #{game_number} (offset {offset})")
                     return True, predicted_number
-            
-            # Si aucune prédiction trouvée dans les offsets 0-3, marquer les anciennes comme échec
-            for pred_num in list(self.prediction_status.keys()):
-                if (self.prediction_status[pred_num] == '⌛' and 
-                    game_number > pred_num + 3):
-                    self.prediction_status[pred_num] = '❌❌'
-                    self.status_log.append((pred_num, '❌❌'))
-                    print(f"❌ Prédiction #{pred_num} marquée échec - jeu #{game_number} dépasse prédit+3")
-                    return False, pred_num
 
-            # Si aucune prédiction trouvée
-            print(f"Aucune prédiction correspondante trouvée pour le jeu #{game_number} dans les offsets 0-3")
+            # Si aucune prédiction trouvée dans les 3 offsets, ne pas marquer comme expirées ici
+            # Les prédictions expirées seront traitées séparément
+            print(f"Aucune prédiction correspondante trouvée pour le jeu #{game_number}")
             print(f"Prédictions actuelles en attente: {[k for k, v in self.prediction_status.items() if v == '⌛']}")
             return None, None
 

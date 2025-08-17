@@ -18,101 +18,26 @@ import threading
 # Load environment variables
 load_dotenv()
 
-# Fonction pour lire les secrets Replit
-def get_replit_secret(key: str, default: str = "") -> str:
-    """Lire un secret depuis Replit ou les variables d'environnement"""
-    import os
-    
-    # D'abord essayer les variables d'environnement standard
-    value = os.getenv(key, "").strip()
-    if value:
-        return value
-    
-    # Essayer de lire depuis le fichier de secrets Replit
-    try:
-        # Les secrets Replit sont parfois stockés dans des fichiers spéciaux
-        secrets_file = f'/home/runner/{os.getenv("REPL_SLUG", "")}/{key}'
-        if os.path.exists(secrets_file):
-            with open(secrets_file, 'r') as f:
-                content = f.read().strip()
-                if content:
-                    return content
-    except Exception:
-        pass
-    
-    # Essayer avec le système de secrets Python de Replit
-    try:
-        # Nouvelle API de replit pour les secrets
-        import replit.replit_secret as secret
-        return secret.get(key, default)
-    except (ImportError, AttributeError):
-        pass
-    except Exception:
-        pass
-    
-    # Essayer avec le module DB de Replit (approche alternative)
-    try:
-        from replit import db as replit_db
-        stored_value = replit_db.get(f"secret_{key}")
-        if stored_value:
-            return stored_value
-    except Exception:
-        pass
-    
-    return default
-
 # --- CONFIGURATION ---
-def load_environment_vars():
-    """Load and validate environment variables with better error handling"""
-    try:
-        # Try to get environment variables using Replit secrets
-        api_id_str = get_replit_secret('API_ID', '').strip()
-        api_hash = get_replit_secret('API_HASH', '').strip()
-        bot_token = get_replit_secret('BOT_TOKEN', '').strip()
-        admin_id_str = get_replit_secret('ADMIN_ID', '').strip()
-        port_str = get_replit_secret('PORT', '5000').strip()
+try:
+    API_ID = int(os.getenv('API_ID') or '0')
+    API_HASH = os.getenv('API_HASH') or ''
+    BOT_TOKEN = os.getenv('BOT_TOKEN') or ''
+    ADMIN_ID = int(os.getenv('ADMIN_ID') or '0')
+    PORT = int(os.getenv('PORT') or '10000')
+    
+    # Validation des variables requises
+    if not API_ID or API_ID == 0:
+        raise ValueError("API_ID manquant ou invalide")
+    if not API_HASH:
+        raise ValueError("API_HASH manquant")
+    if not BOT_TOKEN:
+        raise ValueError("BOT_TOKEN manquant")
         
-        print(f"🔍 Variables brutes:")
-        print(f"  API_ID: {'[CONFIGURÉ]' if api_id_str else '[MANQUANT]'}")
-        print(f"  API_HASH: {'[CONFIGURÉ]' if api_hash else '[MANQUANT]'}")
-        print(f"  BOT_TOKEN: {'[CONFIGURÉ]' if bot_token else '[MANQUANT]'}")
-        print(f"  ADMIN_ID: {'[CONFIGURÉ]' if admin_id_str else '[MANQUANT]'}")
-        print(f"  PORT: {port_str}")
-        
-        # Convert to appropriate types with validation
-        if not api_id_str or not api_id_str.isdigit():
-            raise ValueError("API_ID manquant ou invalide")
-        api_id = int(api_id_str)
-        
-        if not api_hash:
-            raise ValueError("API_HASH manquant")
-            
-        if not bot_token:
-            raise ValueError("BOT_TOKEN manquant")
-            
-        if not admin_id_str or not admin_id_str.isdigit():
-            raise ValueError("ADMIN_ID manquant ou invalide")
-        admin_id = int(admin_id_str)
-        
-        port = int(port_str) if port_str.isdigit() else 5000
-        
-        print(f"✅ Configuration validée: API_ID={api_id}, ADMIN_ID={admin_id}, PORT={port}")
-        return api_id, api_hash, bot_token, admin_id, port
-        
-    except Exception as e:
-        print(f"❌ Erreur configuration: {e}")
-        print("💡 Solutions possibles:")
-        print("  1. Vérifiez que tous les secrets sont configurés dans Replit")
-        print("  2. Redémarrez le workspace si les secrets viennent d'être ajoutés")
-        print("  3. Contactez l'administrateur si le problème persiste")
-        return None, None, None, None, None
-
-# Load configuration
-API_ID, API_HASH, BOT_TOKEN, ADMIN_ID, PORT = load_environment_vars()
-
-# Validate that we have the required configuration
-if not all([API_ID, API_HASH, BOT_TOKEN, ADMIN_ID]):
-    print("❌ Configuration incomplète - arrêt du programme")
+    print(f"✅ Configuration chargée: API_ID={API_ID}, ADMIN_ID={ADMIN_ID}, PORT={PORT}")
+except Exception as e:
+    print(f"❌ Erreur configuration: {e}")
+    print("Vérifiez vos variables d'environnement")
     exit(1)
 
 # Fichier de configuration persistante
@@ -748,177 +673,52 @@ Configuration sauvegardée automatiquement.""")
         print(f"Erreur dans set_prediction_interval: {e}")
         await event.respond(f"❌ Erreur: {e}")
 
-@client.on(events.NewMessage(pattern=r'/deploy(?:\s+(\w+))?'))
+@client.on(events.NewMessage(pattern='/deploy'))
 async def generate_deploy_package(event):
-    """Génère différents packages de déploiement (admin uniquement)
-    
-    Usage:
-    /deploy - Package standard 2026
-    /deploy replit - Package optimisé Replit
-    /deploy render - Package optimisé Render.com
-    /deploy docker - Package avec Dockerfile
-    """
+    """Génère le package de déploiement 2026 pour Render.com (admin uniquement)"""
     try:
         if event.sender_id != ADMIN_ID:
             return
 
-        # Extraire le type de package demandé
-        import re
-        match = re.match(r'/deploy(?:\s+(\w+))?', event.message.message)
-        package_type = match.group(1) if match and match.group(1) else 'standard'
-        
-        # Déterminer le nom et le type de package
-        if package_type == 'replit':
-            package_name = 'deployment_replit_2026.zip'
-            await event.respond("🚀 **Génération Package Replit optimisé...**")
-        elif package_type == 'render':
-            package_name = 'deployment_render_2026.zip'
-            await event.respond("🚀 **Génération Package Render.com optimisé...**")
-        elif package_type == 'docker':
-            package_name = 'deployment_docker_2026.zip'
-            await event.respond("🚀 **Génération Package Docker avec conteneurisation...**")
-        else:
-            package_name = 'deployment_2026.zip'
-            await event.respond("🚀 **Génération Package standard 2026...**")
+        await event.respond("🚀 **Génération Package deployment_2026.zip...**")
         
         try:
+            # Créer le package ZIP avec nom correct
+            package_name = 'deployment_2026.zip'
             
             with zipfile.ZipFile(package_name, 'w', zipfile.ZIP_DEFLATED) as zipf:
-                # Fichiers principaux à inclure (avec vérification d'existence)
+                # Fichiers principaux
                 files_to_include = [
-                    ('main.py', True),  # Obligatoire
-                    ('render_main.py', True),  # Obligatoire
-                    ('predictor.py', True),  # Obligatoire 
-                    ('scheduler.py', True),  # Obligatoire
-                    ('yaml_manager.py', True),  # Obligatoire
-                    ('render.yaml', False),  # Optionnel
-                    ('README_RENDER.md', False),  # Optionnel
-                    ('DEPLOYMENT_GUIDE.md', False),  # Optionnel
-                    ('render_predictor.py', False),  # Optionnel (version simplifiée)
+                    'main.py', 'render_main.py', 'render_predictor.py', 
+                    'render_requirements.txt', 'render.yaml', 'yaml_manager.py',
+                    'predictor.py', 'scheduler.py', 'README_RENDER.md', 'DEPLOYMENT_GUIDE.md'
                 ]
                 
-                files_added = 0
-                for file_path, required in files_to_include:
+                for file_path in files_to_include:
                     if os.path.exists(file_path):
                         zipf.write(file_path)
-                        files_added += 1
-                        print(f"✅ Ajouté: {file_path}")
-                    elif required:
-                        print(f"⚠️ Fichier obligatoire manquant: {file_path}")
-                    else:
-                        print(f"ℹ️ Fichier optionnel absent: {file_path}")
                 
-                print(f"📦 {files_added} fichiers ajoutés au package")
-                
-                # Configuration .env.example spécifique au type de package
-                if package_type == 'replit':
-                    env_content = f"""# Configuration pour Replit
-API_ID=VOTRE_API_ID
-API_HASH=VOTRE_API_HASH
-BOT_TOKEN=VOTRE_BOT_TOKEN
-ADMIN_ID=VOTRE_ADMIN_ID
-PORT=5000
-PREDICTION_INTERVAL={prediction_interval}
-REPLIT_DEPLOYMENT=true"""
-                elif package_type == 'render':
-                    env_content = f"""# Configuration pour Render.com
-API_ID=VOTRE_API_ID
-API_HASH=VOTRE_API_HASH
-BOT_TOKEN=VOTRE_BOT_TOKEN
-ADMIN_ID=VOTRE_ADMIN_ID
+                # Configuration .env.example avec PREDICTION_INTERVAL
+                env_content = f"""API_ID=29177661
+API_HASH=a8639172fa8d35dbfd8ea46286d349ab
+BOT_TOKEN=7815360317:AAGsrFzeUZrHOjujf5aY2UjlBj4GOblHSig
+ADMIN_ID=1190237801
 PORT=10000
-PREDICTION_INTERVAL={prediction_interval}
-RENDER_DEPLOYMENT=true"""
-                elif package_type == 'docker':
-                    env_content = f"""# Configuration pour Docker
-API_ID=VOTRE_API_ID
-API_HASH=VOTRE_API_HASH
-BOT_TOKEN=VOTRE_BOT_TOKEN
-ADMIN_ID=VOTRE_ADMIN_ID
-PORT=8000
-PREDICTION_INTERVAL={prediction_interval}
-DOCKER_DEPLOYMENT=true"""
-                else:
-                    env_content = f"""# Configuration générale
-API_ID=VOTRE_API_ID
-API_HASH=VOTRE_API_HASH
-BOT_TOKEN=VOTRE_BOT_TOKEN
-ADMIN_ID=VOTRE_ADMIN_ID
-PORT=5000
 PREDICTION_INTERVAL={prediction_interval}"""
-                
                 zipf.writestr('.env.example', env_content)
                 
-                # requirements.txt pour Render.com (versions actuelles)
-                requirements_content = """telethon==1.40.0
-aiohttp==3.10.11
-python-dotenv==1.1.1
-PyYAML==6.0.2
-psycopg2-binary==2.9.9"""
+                # requirements.txt pour Render.com (obligatoire - versions compatibles)
+                requirements_content = """telethon==1.35.0
+aiohttp==3.9.5
+python-dotenv==1.0.1
+pyyaml==6.0.1"""
                 zipf.writestr('requirements.txt', requirements_content)
-                
-                # Créer aussi render_requirements.txt (copie identique)
-                zipf.writestr('render_requirements.txt', requirements_content)
-                
-                # Ajouter Dockerfile pour package Docker
-                if package_type == 'docker':
-                    dockerfile_content = f"""FROM python:3.11-slim
-
-WORKDIR /app
-
-# Installer les dépendances système
-RUN apt-get update && apt-get install -y \\
-    gcc \\
-    && rm -rf /var/lib/apt/lists/*
-
-# Copier requirements et installer les dépendances Python
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Copier le code source
-COPY . .
-
-# Exposer le port
-EXPOSE 8000
-
-# Variables d'environnement par défaut
-ENV PORT=8000
-ENV PREDICTION_INTERVAL={prediction_interval}
-
-# Commande de démarrage
-CMD ["python", "render_main.py"]"""
-                    zipf.writestr('Dockerfile', dockerfile_content)
-                    
-                    # Ajouter docker-compose.yml
-                    compose_content = f"""version: '3.8'
-
-services:
-  telegram-bot:
-    build: .
-    ports:
-      - "8000:8000"
-    environment:
-      - API_ID=${{API_ID}}
-      - API_HASH=${{API_HASH}}
-      - BOT_TOKEN=${{BOT_TOKEN}}
-      - ADMIN_ID=${{ADMIN_ID}}
-      - PORT=8000
-      - PREDICTION_INTERVAL={prediction_interval}
-    restart: unless-stopped
-    volumes:
-      - ./data:/app/data
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3"""
-                    zipf.writestr('docker-compose.yml', compose_content)
                 
                 # runtime.txt pour spécifier la version Python
                 runtime_content = "python-3.11.4"
                 zipf.writestr('runtime.txt', runtime_content)
                 
-                # Documentation 2026 mise à jour
+                # Documentation 2026
                 readme_2026 = f"""# Package Déploiement 2026 - Migration YAML Complète
 
 ## Nouvelles Fonctionnalités 2026:
@@ -927,7 +727,6 @@ services:
 ✅ **Performance améliorée**: Élimination des connexions base de données
 ✅ **Commande /intervalle**: Configuration délai 1-60 minutes (actuel: {prediction_interval}min)
 ✅ **Système As optimisé**: Déclenchement uniquement dans premier groupe
-✅ **Multi-plateforme**: Support Replit, Render.com, Docker
 
 ## Architecture YAML:
 - bot_config.yaml: Configuration persistante
@@ -935,32 +734,18 @@ services:
 - auto_predictions.yaml: Planification automatique  
 - message_log.yaml: Logs avec nettoyage automatique
 
-## Déploiement Multi-Plateforme:
-
-### Replit (Port 5000)
-- Variables: Configurer dans Replit Secrets
-- Start Command: python main.py
-- Port automatique: 5000
-
-### Render.com (Port 10000)  
-- Variables: Configurer dans Environment
+## Variables Render.com:
+- Configurez toutes les variables de .env.example
+- Port: 10000
 - Start Command: python render_main.py
-- Port automatique: 10000
+- PLUS BESOIN de DATABASE_URL PostgreSQL
 
-### Docker (Port 8000)
-- Variables: Fichier .env ou docker-compose
-- Start Command: python render_main.py
-- Port configurable: 8000
-
-## Commandes Nouvelles:
-/deploy - Package standard
-/deploy replit - Package optimisé Replit  
-/deploy render - Package optimisé Render.com
-/deploy docker - Package avec Dockerfile
+## Commandes Disponibles:
 /intervalle [minutes] - Configurer délai prédiction
 /status - État complet avec intervalle
+/deploy - Générer ce package
 
-🚀 Déploiement 100% autonome multi-plateforme!"""
+🚀 Déploiement 100% autonome sans dépendances externes!"""
                 zipf.writestr('README_2026.md', readme_2026)
             
             file_size = os.path.getsize(package_name) / 1024
@@ -1028,7 +813,7 @@ async def handle_messages(event):
         if predicted:
             print(f"🎯 Message édité finalisé, traitement de la prédiction #{predicted_game}")
             # Message de prédiction selon le nouveau format
-            prediction_text = f"🔵{predicted_game} 🔵2D: {suit} :⏳"
+            prediction_text = f"🔵{predicted_game}— JOKER 2D| ⏳"
 
             sent_messages = await broadcast(prediction_text)
 
@@ -1043,7 +828,7 @@ async def handle_messages(event):
             predicted, predicted_game, suit = predictor.should_predict(message_text)
             if predicted:
                 # Message de prédiction manuelle selon le nouveau format demandé
-                prediction_text = f"🔵{predicted_game} 🔵2D: {suit} :⏳"
+                prediction_text = f"🔵{predicted_game}— JOKER 2D| ⏳"
 
                 sent_messages = await broadcast(prediction_text)
 
@@ -1064,7 +849,7 @@ async def handle_messages(event):
                 print(f"✅ Message de prédiction #{number} mis à jour avec statut: {statut}")
             else:
                 print(f"⚠️ Impossible de mettre à jour le message #{number}, envoi d'un nouveau message")
-                status_text = f"🔵{number} 🔵2D: statut :{statut}"
+                status_text = f"🔵{number}— JOKER 2D| {statut}"
                 await broadcast(status_text)
         
         # Check for expired predictions on every valid result message
@@ -1078,7 +863,7 @@ async def handle_messages(event):
                     print(f"✅ Message de prédiction expirée #{expired_num} mis à jour avec ❌❌")
                 else:
                     print(f"⚠️ Impossible de mettre à jour le message expiré #{expired_num}")
-                    status_text = f"🔵{expired_num} 🔵2D: statut :❌❌"
+                    status_text = f"🔵{expired_num}— JOKER 2D| ❌❌"
                     await broadcast(status_text)
 
         # Vérification des prédictions automatiques du scheduler
@@ -1113,7 +898,9 @@ async def handle_messages(event):
                         print(f"📝 Prédiction automatique {numero_str} vérifiée: {status}")
                         print(f"🔄 Nouvelle prédiction générée pour maintenir la continuité")
 
-        # Bilan automatique supprimé sur demande utilisateur
+        # Generate periodic report every 20 predictions
+        if len(predictor.status_log) > 0 and len(predictor.status_log) % 20 == 0:
+            await generate_report()
 
     except Exception as e:
         print(f"Erreur dans handle_messages: {e}")
@@ -1142,7 +929,7 @@ async def edit_prediction_message(game_number: int, new_status: str):
         if message_info:
             chat_id = message_info['chat_id']
             message_id = message_info['message_id']
-            new_text = f"🔵{game_number} 🔵2D: statut :{new_status}"
+            new_text = f"🔵{game_number}— JOKER 2D| {new_status}"
 
             await client.edit_message(chat_id, message_id, new_text)
             print(f"Message de prédiction #{game_number} mis à jour avec statut: {new_status}")

@@ -6,7 +6,6 @@
 ✅ **Performance améliorée**: Élimination des connexions base de données
 ✅ **Commande /intervalle**: Configuration délai 1-60 minutes (actuel: 1min)
 ✅ **Système As optimisé**: Déclenchement uniquement dans premier groupe
-✅ **Multi-plateforme**: Support Replit, Render.com, Docker
 
 ## Architecture YAML:
 - bot_config.yaml: Configuration persistante
@@ -14,29 +13,15 @@
 - auto_predictions.yaml: Planification automatique  
 - message_log.yaml: Logs avec nettoyage automatique
 
-## Déploiement Multi-Plateforme:
-
-### Replit (Port 5000)
-- Variables: Configurer dans Replit Secrets
-- Start Command: python main.py
-- Port automatique: 5000
-
-### Render.com (Port 10000)  
-- Variables: Configurer dans Environment
+## Variables Render.com:
+- Configurez toutes les variables de .env.example
+- Port: 10000
 - Start Command: python render_main.py
-- Port automatique: 10000
+- PLUS BESOIN de DATABASE_URL PostgreSQL
 
-### Docker (Port 8000)
-- Variables: Fichier .env ou docker-compose
-- Start Command: python render_main.py
-- Port configurable: 8000
-
-## Commandes Nouvelles:
-/deploy - Package standard
-/deploy replit - Package optimisé Replit  
-/deploy render - Package optimisé Render.com
-/deploy docker - Package avec Dockerfile
+## Commandes Disponibles:
 /intervalle [minutes] - Configurer délai prédiction
 /status - État complet avec intervalle
+/deploy - Générer ce package
 
-🚀 Déploiement 100% autonome multi-plateforme!
+🚀 Déploiement 100% autonome sans dépendances externes!
