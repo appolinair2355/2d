@@ -191,7 +191,7 @@ class PredictionScheduler:
             
             # Message de prédiction automatique selon le nouveau format demandé
             game_number = int(numero.replace('N', ''))
-            prediction_text = f"🔵{game_number}— JOKER 2D| ⏳"
+            prediction_text = f"🔵{game_number} 🔵2D: {suit_prediction} :⏳"
             
             # Envoie le message au canal cible
             sent_message = await self.client.send_message(self.target_channel_id, prediction_text)
@@ -246,7 +246,7 @@ class PredictionScheduler:
             if data["message_id"] and data["chat_id"]:
                 # Message mis à jour selon le nouveau format demandé
                 game_number = int(numero.replace('N', ''))
-                new_text = f"🔵{game_number}— JOKER 2D| {new_status}"
+                new_text = f"🔵{game_number} 🔵2D: statut :{new_status}"
 
                 await self.client.edit_message(
                     data["chat_id"], 
