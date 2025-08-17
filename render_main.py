@@ -3,6 +3,7 @@ import asyncio
 import re
 from telethon import TelegramClient, events
 from predictor import CardPredictor
+from yaml_manager import init_database, db
 from aiohttp import web
 import time
 
@@ -442,6 +443,13 @@ async def main():
     print(f"API_ID: {API_ID}")
     print(f"Bot Token configuré: {'Oui' if BOT_TOKEN else 'Non'}")
     print(f"Port configuré: {PORT}")
+    
+    # Initialize YAML database
+    database = init_database()
+    if database:
+        print("✅ Gestionnaire YAML initialisé pour Render.com")
+    else:
+        print("⚠️ Gestionnaire YAML non disponible, utilisation mode basique")
     
     # Validate configuration
     if not API_ID or not API_HASH or not BOT_TOKEN:

@@ -11,7 +11,7 @@ from telethon.events import ChatAction
 from dotenv import load_dotenv
 from predictor import CardPredictor
 from scheduler import PredictionScheduler
-from models import init_database, db
+from yaml_manager import init_database, db
 from aiohttp import web
 import threading
 
@@ -675,22 +675,22 @@ Configuration sauvegardée automatiquement.""")
 
 @client.on(events.NewMessage(pattern='/deploy'))
 async def generate_deploy_package(event):
-    """Génère le package de déploiement 2D pour Render.com (admin uniquement)"""
+    """Génère le package de déploiement 2026 pour Render.com (admin uniquement)"""
     try:
         if event.sender_id != ADMIN_ID:
             return
 
-        await event.respond("🚀 **Génération Package deployment_2d.zip...**")
+        await event.respond("🚀 **Génération Package deployment_2026.zip...**")
         
         try:
             # Créer le package ZIP avec nom correct
-            package_name = 'deployment_2d.zip'
+            package_name = 'deployment_2026.zip'
             
             with zipfile.ZipFile(package_name, 'w', zipfile.ZIP_DEFLATED) as zipf:
                 # Fichiers principaux
                 files_to_include = [
                     'main.py', 'render_main.py', 'render_predictor.py', 
-                    'render_requirements.txt', 'render.yaml', 'models.py',
+                    'render_requirements.txt', 'render.yaml', 'yaml_manager.py',
                     'predictor.py', 'scheduler.py', 'README_RENDER.md', 'DEPLOYMENT_GUIDE.md'
                 ]
                 
@@ -711,53 +711,63 @@ PREDICTION_INTERVAL={prediction_interval}"""
                 requirements_content = """telethon==1.35.0
 aiohttp==3.9.5
 python-dotenv==1.0.1
-pyyaml==6.0.1
-psycopg2-binary==2.9.7"""
+pyyaml==6.0.1"""
                 zipf.writestr('requirements.txt', requirements_content)
                 
                 # runtime.txt pour spécifier la version Python
                 runtime_content = "python-3.11.4"
                 zipf.writestr('runtime.txt', runtime_content)
                 
-                # Documentation 2D
-                readme_2d = f"""# Package Déploiement 2D - Août 2025
+                # Documentation 2026
+                readme_2026 = f"""# Package Déploiement 2026 - Migration YAML Complète
 
-## Nouvelles Fonctionnalités:
-• Commande /intervalle (1-60 minutes) - Actuel: {prediction_interval}min
-• Configuration persistante base de données
-• Système déclenchement par As uniquement dans premier groupe
+## Nouvelles Fonctionnalités 2026:
+✅ **Migration PostgreSQL → YAML**: Plus de base de données externe requise
+✅ **Stockage fichiers locaux**: Dossier data/ avec fichiers YAML structurés  
+✅ **Performance améliorée**: Élimination des connexions base de données
+✅ **Commande /intervalle**: Configuration délai 1-60 minutes (actuel: {prediction_interval}min)
+✅ **Système As optimisé**: Déclenchement uniquement dans premier groupe
+
+## Architecture YAML:
+- bot_config.yaml: Configuration persistante
+- predictions.yaml: Historique prédictions
+- auto_predictions.yaml: Planification automatique  
+- message_log.yaml: Logs avec nettoyage automatique
 
 ## Variables Render.com:
 - Configurez toutes les variables de .env.example
 - Port: 10000
 - Start Command: python render_main.py
+- PLUS BESOIN de DATABASE_URL PostgreSQL
 
 ## Commandes Disponibles:
 /intervalle [minutes] - Configurer délai prédiction
 /status - État complet avec intervalle
 /deploy - Générer ce package
 
-Prêt pour déploiement Render.com!"""
-                zipf.writestr('README_2D.md', readme_2d)
+🚀 Déploiement 100% autonome sans dépendances externes!"""
+                zipf.writestr('README_2026.md', readme_2026)
             
             file_size = os.path.getsize(package_name) / 1024
             
             # Envoyer le message de confirmation
-            await event.respond(f"""✅ **PACKAGE 2D CRÉÉ AVEC SUCCÈS!**
+            await event.respond(f"""✅ **PACKAGE 2026 CRÉÉ AVEC SUCCÈS!**
 
-📦 **Fichier**: deployment_2d.zip ({file_size:.1f} KB)
+📦 **Fichier**: deployment_2026.zip ({file_size:.1f} KB)
+🔄 **Migration YAML**: Suppression complète PostgreSQL
+⚡ **Performance**: Plus de dépendances base de données
 🆕 **Commande /intervalle** incluse (actuel: {prediction_interval}min)
 🔧 **Port 10000** configuré pour Render.com
-📚 **Documentation 2D** complète""")
+📚 **Documentation 2026** complète""")
             
             # Envoyer le fichier ZIP en pièce jointe
             await client.send_file(
                 event.chat_id,
                 package_name,
-                caption="📦 **Package de Déploiement 2D** - Prêt pour Render.com port 10000"
+                caption="📦 **Package Déploiement 2026** - Architecture YAML pure, prêt pour Render.com"
             )
             
-            print(f"✅ Package deployment_2d.zip créé: {file_size:.1f} KB")
+            print(f"✅ Package deployment_2026.zip créé: {file_size:.1f} KB")
             
         except Exception as e:
             await event.respond(f"❌ Erreur création: {str(e)}")
