@@ -155,7 +155,7 @@ class CardPredictor:
                         self.count_total_cards(second_group) == 2)
 
             # Check for pending predictions within offset range
-            for offset in range(3):  # Check 0, 1, 2 games back
+            for offset in range(4):  # Check 0, 1, 2 , 3 games back
                 target_number = game_number - offset
                 
                 if (target_number in self.prediction_status and 
@@ -167,8 +167,12 @@ class CardPredictor:
                             statut = '✅0️⃣'  # Perfect timing
                         elif offset == 1:
                             statut = '✅1️⃣'  # 1 game late
-                        else:
+                        elif offset == 2:
                             statut = '✅2️⃣'  # 2 games late
+                        elif offset == 3:
+                            statut = '✅3️⃣'  # 3 games late
+                        else:
+                            statut = '❌❌'   # plus de 3 -> échec
                             
                         self.prediction_status[target_number] = statut
                         self.status_log.append((target_number, statut))
