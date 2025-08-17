@@ -1,11 +1,23 @@
 import os
 import asyncio
 import re
+import logging
+import sys
 from telethon import TelegramClient, events
 from predictor import CardPredictor
 from yaml_manager import init_database, db
 from aiohttp import web
 import time
+
+# Configuration des logs pour Render.com
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout)
+    ]
+)
+logger = logging.getLogger(__name__)
 
 # --- CONFIGURATION ---
 API_ID = int(os.getenv('API_ID', '0'))
@@ -40,22 +52,22 @@ async def start_web_server():
     await runner.setup()
     site = web.TCPSite(runner, '0.0.0.0', PORT)
     await site.start()
-    print(f"✅ Serveur web démarré sur 0.0.0.0:{PORT} (Render.com)")
-    print(f"🌍 Health check disponible sur: http://0.0.0.0:{PORT}/health")
+    logger.info(f"✅ Serveur web démarré sur 0.0.0.0:{PORT} (Render.com)")
+    logger.info(f"🌍 Health check disponible sur: http://0.0.0.0:{PORT}/health")
 
 async def start_bot():
     """Start the bot with proper error handling"""
     try:
         await client.start(bot_token=BOT_TOKEN)
-        print("Bot démarré avec succès...")
+        logger.info("Bot démarré avec succès...")
         
         # Get bot info
         me = await client.get_me()
         username = getattr(me, 'username', 'Unknown') or f"ID:{me.id}"
-        print(f"Bot connecté: @{username}")
+        logger.info(f"Bot connecté: @{username}")
         
     except Exception as e:
-        print(f"Erreur lors du démarrage du bot: {e}")
+        logger.error(f"Erreur lors du démarrage du bot: {e}")
         return False
     
     return True
@@ -324,50 +336,87 @@ async def show_trigger_numbers(event):
 # --- TRAITEMENT DES MESSAGES DU CANAL DE STATISTIQUES ---
 @client.on(events.NewMessage())
 async def handle_messages(event):
-    """Handle messages from statistics channel"""
+    """Handle all incoming messages with detailed logging"""
+    global detected_stat_channel, detected_display_channel
+    
     try:
-        # Ignore if no stat channel configured or message not from stat channel
-        if detected_stat_channel is None or event.chat_id != detected_stat_channel:
-            return
-
         message_text = event.message.message
         if not message_text:
             return
-
-        print(f"📨 Message reçu du canal {event.chat_id}: {message_text}")
-
-        # Check for prediction trigger
-        predicted, predicted_game, suit = predictor.should_predict(message_text)
-        if predicted:
-            prediction_text = f"🔵 {predicted_game} 📌 D🔵 statut :''⌛''"
-            sent_messages = await broadcast(prediction_text)
             
+        # Log tous les messages comme dans main.py
+        logger.info(f"📬 TOUS MESSAGES: Canal {event.chat_id} | Texte: {message_text}")
+        logger.info(f"🔧 Canal stats configuré: {detected_stat_channel}")
+        
+        # Si pas de canal stats configuré, ignorer
+        if detected_stat_channel is None:
+            logger.info("❌ Aucun canal stats configuré, message ignoré")
+            return
+            
+        # Si message ne vient pas du canal stats, ignorer
+        if event.chat_id != detected_stat_channel:
+            logger.info(f"❌ Message ignoré: Canal {event.chat_id} ≠ Canal stats {detected_stat_channel}")
+            return
+            
+        # Message accepté du canal stats
+        logger.info(f"✅ Message accepté du canal stats {event.chat_id}: {message_text}")
+
+        # 1. Vérifier si c'est un message en cours d'édition (⏰ ou 🕐)
+        is_pending, game_num = predictor.is_pending_edit_message(message_text)
+        if is_pending:
+            logger.info(f"⏳ Message #{game_num} mis en attente d'édition finale")
+            return  # Ignorer pour le moment, attendre l'édition finale
+
+        # 2. Vérifier si c'est l'édition finale d'un message en attente (🔰 ou ✅)
+        predicted, predicted_game, suit = predictor.process_final_edit_message(message_text)
+        if predicted:
+            logger.info(f"🎯 Message édité finalisé, traitement de la prédiction #{predicted_game}")
+            # Message de prédiction selon le nouveau format
+            prediction_text = f"🔵{predicted_game}— JOKER 2D| ⏳"
+
+            sent_messages = await broadcast(prediction_text)
+
             # Store message IDs for later editing
             if sent_messages and predicted_game:
                 for chat_id, message_id in sent_messages:
                     predictor.store_prediction_message(predicted_game, message_id, chat_id)
-            
-            print(f"✅ Prédiction générée pour le jeu #{predicted_game}: {suit}")
 
-        # Check for prediction verification
-        verified, number = predictor.verify_prediction(message_text)
+            logger.info(f"✅ Prédiction générée après édition finale pour le jeu #{predicted_game}: {suit}")
+        else:
+            # 3. Vérifier si c'est un nouveau message standard pour prédiction
+            predicted, predicted_game, suit = predictor.should_predict(message_text)
+            if predicted:
+                # Message de prédiction manuelle selon le nouveau format demandé
+                prediction_text = f"🔵{predicted_game}— JOKER 2D| ⏳"
+
+                sent_messages = await broadcast(prediction_text)
+
+                # Store message IDs for later editing
+                if sent_messages and predicted_game:
+                    for chat_id, message_id in sent_messages:
+                        predictor.store_prediction_message(predicted_game, message_id, chat_id)
+
+                logger.info(f"✅ Prédiction générée pour le jeu #{predicted_game}: {suit}")
+
+        # 4. Vérification des résultats (indépendamment des prédictions)
+        verified, number, status = predictor.verify_prediction(message_text)
         if verified is not None and number is not None:
-            statut = predictor.prediction_status.get(number, 'Inconnu')
+            logger.info(f"🔍 Vérification: Jeu #{number}, Statut: {status}")
+            
             # Edit the original prediction message instead of sending new message
-            success = await edit_prediction_message(number, statut)
+            success = await edit_prediction_message(number, status)
             if success:
-                print(f"✅ Message de prédiction #{number} mis à jour avec statut: {statut}")
+                logger.info(f"✅ Message de prédiction #{number} mis à jour avec statut: {status}")
             else:
-                print(f"⚠️ Impossible de mettre à jour le message #{number}, envoi d'un nouveau message")
-                status_text = f"📍 Distribution 📌 Jeu #{number}: statut '{statut}'"
-                await broadcast(status_text)
+                logger.info(f"⚠️ Impossible de mettre à jour le message #{number}")
+                # Pas de nouveau message, juste continuer
 
         # Generate periodic report every 20 predictions
         if len(predictor.status_log) > 0 and len(predictor.status_log) % 20 == 0:
             await generate_report()
 
     except Exception as e:
-        print(f"Erreur dans handle_messages: {e}")
+        logger.error(f"Erreur dans handle_messages: {e}")
 
 async def generate_report():
     """Generate and broadcast periodic report with updated format"""
@@ -416,13 +465,13 @@ async def edit_prediction_message(game_number: int, new_status: str):
         if message_info:
             chat_id = message_info['chat_id']
             message_id = message_info['message_id']
-            new_text = f"🔵 {game_number} 📌 D🔵 statut :{new_status}"
+            new_text = f"🔵{game_number}— JOKER 2D| {new_status}"
             
             await client.edit_message(chat_id, message_id, new_text)
-            print(f"Message de prédiction #{game_number} mis à jour avec statut: {new_status}")
+            logger.info(f"Message de prédiction #{game_number} mis à jour avec statut: {new_status}")
             return True
     except Exception as e:
-        print(f"Erreur lors de la modification du message: {e}")
+        logger.error(f"Erreur lors de la modification du message: {e}")
     return False
 
 # --- GESTION D'ERREURS ET RECONNEXION ---
@@ -439,21 +488,21 @@ async def handle_connection_error():
 # --- LANCEMENT ---
 async def main():
     """Main function to start the bot"""
-    print("Démarrage du bot Telegram sur Render.com...")
-    print(f"API_ID: {API_ID}")
-    print(f"Bot Token configuré: {'Oui' if BOT_TOKEN else 'Non'}")
-    print(f"Port configuré: {PORT}")
+    logger.info("Démarrage du bot Telegram sur Render.com...")
+    logger.info(f"API_ID: {API_ID}")
+    logger.info(f"Bot Token configuré: {'Oui' if BOT_TOKEN else 'Non'}")
+    logger.info(f"Port configuré: {PORT}")
     
     # Initialize YAML database
     database = init_database()
     if database:
-        print("✅ Gestionnaire YAML initialisé pour Render.com")
+        logger.info("✅ Gestionnaire YAML initialisé pour Render.com")
     else:
-        print("⚠️ Gestionnaire YAML non disponible, utilisation mode basique")
+        logger.info("⚠️ Gestionnaire YAML non disponible, utilisation mode basique")
     
     # Validate configuration
     if not API_ID or not API_HASH or not BOT_TOKEN:
-        print("❌ Configuration manquante! Vérifiez vos variables d'environnement")
+        logger.error("❌ Configuration manquante! Vérifiez vos variables d'environnement")
         return
     
     try:
@@ -462,20 +511,21 @@ async def main():
         
         # Start the bot
         if await start_bot():
-            print("✅ Bot en ligne et en attente de messages...")
+            logger.info("✅ Bot en ligne et en attente de messages...")
+            logger.info("🌐 Accès web: http://0.0.0.0:10000")
             await client.run_until_disconnected()
         else:
-            print("❌ Échec du démarrage du bot")
+            logger.error("❌ Échec du démarrage du bot")
             
     except KeyboardInterrupt:
-        print("\n🛑 Arrêt du bot demandé par l'utilisateur")
+        logger.info("\n🛑 Arrêt du bot demandé par l'utilisateur")
     except Exception as e:
-        print(f"❌ Erreur critique: {e}")
+        logger.error(f"❌ Erreur critique: {e}")
         await handle_connection_error()
     finally:
         try:
             await client.disconnect()
-            print("Bot déconnecté proprement")
+            logger.info("Bot déconnecté proprement")
         except:
             pass
 
